@@ -9,7 +9,9 @@ To facilitate seamless navigation, here is how the files are organized:
 * `scripts/` - Contains two standalone, runnable Python automated systems.
 * `docs/` - Contains massive, deep-dive educational audits and model-specific prompt guides.
 * `assets/` - A structural placeholder reserved for future supplementary files and raw data.
-
+### 🚀 Featured Python Systems (Inside `scripts/`)
+* **Autonomous AI News Broadcaster:** A Python agent that runs every 15 minutes, fetching the latest AI news via RSS, summarizing the updates using the Gemini API, and pushing real-time notifications directly to Telegram.
+* **3D File Integrity Watchdog:** A full-stack local application consisting of a Python backend (`bot.py`) that monitors local file hashes for unauthorized changes, a JSON "nervous system" bridge (`findings.json`), and a dynamic 3D WebGL dashboard (`index.html`) that visually shifts from safe blue to emergency red when a threat is detected.
 ## ⚙️ How to Use This Toolkit (Operational Instructions)
 Because the materials in this repository are highly detailed, here are the optimal ways to utilize them:
 1. **The LLM Project Strategy (`docs/`)**: We highly recommend downloading the massive PDF guides from the `docs/` folder and uploading them directly into a "Claude Project" or "ChatGPT Custom GPT" knowledge base. You can then ask the LLM to read the guide and autonomously generate perfect, model-specific prompts for your use case!
