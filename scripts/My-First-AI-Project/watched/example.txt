@@ -1,0 +1,2 @@
+hello from the security bot demo
+AWS_SECRET_ACCESS_KEY = "AKIAIOSFODNN7EXAMPLE"

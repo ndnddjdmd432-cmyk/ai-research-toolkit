@@ -1,0 +1,14 @@
+services:
+  security-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: self_healing_security_bot_demo
+    working_dir: /app
+    command: ["python", "/app/bot.py", "--once"]
+    # Optional: persist "state/" and "watched/" on your machine between runs.
+    volumes:
+      - ./watched:/app/watched
+      - ./state:/app/state
+      - ./config.json:/app/config.json
+

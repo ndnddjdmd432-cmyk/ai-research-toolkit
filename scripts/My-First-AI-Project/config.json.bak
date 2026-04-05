@@ -1,0 +1,6 @@
+﻿{
+  "watched_dir": "watched",
+  "state_dir": "state",
+  "dangerous_substrings": ["password=", "api_key=", "secret=", "BEGIN PRIVATE KEY"],
+  "max_file_bytes": 200000
+}

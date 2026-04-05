@@ -1,0 +1,16 @@
+{
+  "app": "Self-Healing Security Bot (Beginner Demo)",
+  "timestamp_unix": 1774517465,
+  "findings": [
+    {
+      "path": "watched\\example.txt",
+      "issue": "llm_flag:llm_flag:exposed_aws_key_detected (evidence=AWS_SECRET,AKIA)",
+      "severity": "high"
+    },
+    {
+      "path": "watched\\example.txt",
+      "issue": "hash_sha256:aa34a8c4430f83e4",
+      "severity": "info"
+    }
+  ]
+}

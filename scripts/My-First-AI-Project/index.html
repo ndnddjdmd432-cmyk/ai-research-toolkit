@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Security Agent SOC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        html { background-color: #FAF9F6; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background-color: transparent;
+            color: #334155;
+        }
+
+        .glass {
+            position: relative;
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(20px) saturate(165%);
+            -webkit-backdrop-filter: blur(20px) saturate(165%);
+            border: 1px solid rgba(255, 255, 255, 0.80);
+            box-shadow:
+                0 1px 2px rgba(15, 23, 42, 0.03),
+                0 18px 48px rgba(15, 23, 42, 0.08),
+                0 32px 80px rgba(15, 23, 42, 0.04);
+        }
+
+        .pulse-red { animation: pulse-red 2s infinite; }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(190, 101, 72, 0.20); }
+            70% { box-shadow: 0 0 0 16px rgba(190, 101, 72, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(190, 101, 72, 0); }
+        }
+
+        .scan-line {
+            width: 100%;
+            height: 2px;
+            background: rgba(100, 116, 139, 0.16);
+            position: absolute;
+            top: 0;
+            left: 0;
+            animation: scan 4s linear infinite;
+            opacity: 0.9;
+            pointer-events: none;
+        }
+
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+
+        @keyframes fade-in-up {
+            0% {
+                opacity: 0;
+                transform: translateY(28px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #neural-bg {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            background:
+                radial-gradient(circle at 1px 1px, rgba(15, 23, 42, 0.055) 1px, transparent 0),
+                radial-gradient(circle at 18% 18%, rgba(226, 232, 240, 0.72), transparent 30%),
+                radial-gradient(circle at 82% 10%, rgba(241, 245, 249, 0.88), transparent 28%),
+                radial-gradient(circle at 50% 88%, rgba(244, 241, 235, 0.88), transparent 38%),
+                linear-gradient(180deg, rgba(250, 249, 246, 0.24), rgba(250, 249, 246, 0.97));
+            background-size:
+                24px 24px,
+                auto,
+                auto,
+                auto,
+                auto;
+        }
+
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            background:
+                radial-gradient(circle at 20% 22%, rgba(255, 255, 255, 0.75), transparent 24%),
+                radial-gradient(circle at 78% 16%, rgba(255, 255, 255, 0.58), transparent 22%),
+                radial-gradient(circle at 52% 78%, rgba(248, 250, 252, 0.72), transparent 28%);
+            filter: blur(20px);
+            opacity: 0.85;
+        }
+
+        .max-w-6xl > header {
+            opacity: 0;
+            animation: fade-in-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.08s forwards;
+        }
+
+        .grid > .glass:nth-child(1) {
+            opacity: 0;
+            animation: fade-in-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.18s forwards;
+        }
+
+        .grid > .glass:nth-child(2) {
+            opacity: 0;
+            animation: fade-in-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.28s forwards;
+        }
+
+        .grid > .glass:nth-child(3) {
+            opacity: 0;
+            animation: fade-in-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.38s forwards;
+        }
+
+        .max-w-6xl > .glass.rounded-2xl {
+            opacity: 0;
+            animation: fade-in-up 1s cubic-bezier(0.22, 1, 0.36, 1) 0.48s forwards;
+        }
+
+        #alert-banner {
+            transform-origin: center top;
+        }
+
+        #findings-table tr {
+            animation: fade-in-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .scan-line,
+            .pulse-red,
+            .max-w-6xl > header,
+            .grid > .glass:nth-child(1),
+            .grid > .glass:nth-child(2),
+            .grid > .glass:nth-child(3),
+            .max-w-6xl > .glass.rounded-2xl,
+            #findings-table tr {
+                animation: none !important;
+                opacity: 1 !important;
+                transform: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen p-8 relative overflow-hidden text-slate-800">
+    <canvas id="neural-bg" aria-hidden="true"></canvas>
+    <div class="scan-line"></div>
+    <div class="max-w-6xl mx-auto z-10 relative">
+        <header class="mb-8 border-b border-slate-200 pb-4 flex justify-between items-end">
+            <div>
+                <h1 class="text-4xl font-semibold text-slate-900 tracking-tight">AGENTIC<span class="text-slate-500">_SOC</span></h1>
+                <p class="text-slate-500 mt-2 text-sm">Autonomous Security Orchestration | Live Telemetry</p>
+            </div>
+            <div id="status-indicator" class="flex items-center space-x-2 text-emerald-700">
+                <div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span class="text-sm font-semibold tracking-wide">SYSTEM ACTIVE</span>
+            </div>
+        </header>
+
+        <div id="alert-banner" class="hidden mb-8 p-4 rounded-2xl border border-rose-200 bg-rose-50/90 text-rose-700 font-semibold pulse-red flex items-center justify-between shadow-sm">
+            <span>CRITICAL THREAT DETECTED BY AI SUPERVISOR</span>
+            <span id="alert-time" class="text-xs"></span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="glass p-6 rounded-2xl shadow-sm">
+                <h3 class="text-slate-500 text-sm mb-2 tracking-[0.18em]">SCANNED TARGETS</h3>
+                <p id="total-findings" class="text-4xl font-semibold text-slate-900">0</p>
+            </div>
+            <div class="glass p-6 rounded-2xl border-t-4 border-t-rose-300 shadow-sm" id="high-sev-card">
+                <h3 class="text-rose-700 text-sm mb-2 font-semibold tracking-[0.18em]">HIGH SEVERITY</h3>
+                <p id="high-severity" class="text-4xl font-semibold text-rose-700">0</p>
+            </div>
+            <div class="glass p-6 rounded-2xl shadow-sm">
+                <h3 class="text-slate-500 text-sm mb-2 tracking-[0.18em]">LAST SYNC</h3>
+                <p id="last-update" class="text-lg text-slate-900">Pending...</p>
+            </div>
+        </div>
+
+        <div class="glass rounded-2xl overflow-hidden shadow-sm">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50/90 text-slate-500 text-xs tracking-[0.18em] border-b border-slate-200">
+                        <th class="p-4 font-medium">SEVERITY</th>
+                        <th class="p-4 font-medium">AI DIAGNOSIS (ISSUE)</th>
+                        <th class="p-4 font-medium">FILE PATH</th>
+                    </tr>
+                </thead>
+                <tbody id="findings-table" class="text-sm">
+                    <tr><td colspan="3" class="p-4 text-center text-slate-400">Awaiting AI Telemetry...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        window.__socThreatState = window.__socThreatState || { highSevCount: 0, lastUpdate: 0 };
+
+        async function fetchState() {
+            try {
+                const response = await fetch('state/findings.json?t=' + new Date().getTime());
+                if (!response.ok) throw new Error('Network error');
+                const data = await response.json();
+                
+                document.getElementById('last-update').innerText = new Date(data.timestamp_unix * 1000).toLocaleTimeString();
+                document.getElementById('total-findings').innerText = data.findings.length;
+                
+                const highSevCount = data.findings.filter(f => f.severity === 'high').length;
+                document.getElementById('high-severity').innerText = highSevCount;
+                window.__socThreatState.highSevCount = highSevCount;
+                window.__socThreatState.lastUpdate = Date.now();
+                
+                const alertBanner = document.getElementById('alert-banner');
+                const statusIndicator = document.getElementById('status-indicator');
+                const highSevCard = document.getElementById('high-sev-card');
+                
+                if (highSevCount > 0) {
+                    alertBanner.classList.remove('hidden');
+                    document.getElementById('alert-time').innerText = new Date().toLocaleTimeString();
+                    statusIndicator.innerHTML = '<div class="w-3 h-3 rounded-full bg-rose-500 pulse-red"></div><span class="text-sm font-semibold text-rose-700 tracking-wide">THREAT ACTIVE</span>';
+                    highSevCard.classList.add('pulse-red');
+                } else {
+                    alertBanner.classList.add('hidden');
+                    statusIndicator.innerHTML = '<div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div><span class="text-sm font-semibold text-emerald-700 tracking-wide">SYSTEM SECURE</span>';
+                    highSevCard.classList.remove('pulse-red');
+                }
+
+                const tbody = document.getElementById('findings-table');
+                tbody.innerHTML = '';
+                
+                data.findings.forEach(f => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-slate-100 hover:bg-slate-50/80 transition-colors';
+                    
+                    let sevBadge = f.severity === 'high' 
+                        ? '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">HIGH</span>'
+                        : '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-slate-50 text-slate-600 border border-slate-200">INFO</span>';
+
+                    let issueStyle = f.severity === 'high' ? 'text-rose-700 font-semibold' : 'text-slate-700';
+
+                    row.innerHTML = `
+                        <td class="p-4">${sevBadge}</td>
+                        <td class="p-4 ${issueStyle}">${f.issue}</td>
+                        <td class="p-4 text-slate-500 font-mono text-xs">${f.path}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error fetching state:', error);
+            }
+        }
+        setInterval(fetchState, 2000);
+        fetchState();
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script>
+        const threatState = window.__socThreatState = window.__socThreatState || { highSevCount: 0, lastUpdate: 0 };
+        const canvas = document.getElementById('neural-bg');
+
+        try {
+            const renderer = new THREE.WebGLRenderer({
+                canvas: canvas,
+                antialias: true,
+                alpha: true,
+                powerPreference: 'high-performance'
+            });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setSize(window.innerWidth, window.innerHeight, false);
+            renderer.setClearColor(0x000000, 0);
+
+            const scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0xFAF9F6, 12, 28);
+
+            const camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 0, 18);
+
+            const swarmGroup = new THREE.Group();
+            scene.add(swarmGroup);
+
+            const PARTICLE_COUNT = 1500;
+            const basePositions = new Float32Array(PARTICLE_COUNT * 3);
+            const livePositions = new Float32Array(PARTICLE_COUNT * 3);
+            const colorArray = new Float32Array(PARTICLE_COUNT * 3);
+            const phaseArray = new Float32Array(PARTICLE_COUNT);
+            const radiusArray = new Float32Array(PARTICLE_COUNT);
+
+            const calmColor = new THREE.Color(0x64748B);
+            const threatColor = new THREE.Color(0xBE6548);
+            const blendedColor = new THREE.Color();
+            const calmLineColor = new THREE.Color(0x94A3B8);
+            const threatLineColor = new THREE.Color(0xC97A62);
+            const blendedLineColor = new THREE.Color();
+
+            const geometry = new THREE.BufferGeometry();
+            const positionAttribute = new THREE.BufferAttribute(livePositions, 3);
+            positionAttribute.setUsage(THREE.DynamicDrawUsage);
+            const colorAttribute = new THREE.BufferAttribute(colorArray, 3);
+            colorAttribute.setUsage(THREE.DynamicDrawUsage);
+
+            geometry.setAttribute('position', positionAttribute);
+            geometry.setAttribute('color', colorAttribute);
+
+            const pointsMaterial = new THREE.PointsMaterial({
+                size: 0.115,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.52,
+                blending: THREE.NormalBlending,
+                depthWrite: false,
+                sizeAttenuation: true
+            });
+
+            const glowMaterial = new THREE.PointsMaterial({
+                color: calmColor,
+                size: 0.23,
+                transparent: true,
+                opacity: 0.10,
+                blending: THREE.NormalBlending,
+                depthWrite: false,
+                sizeAttenuation: true
+            });
+
+            const glowPoints = new THREE.Points(geometry, glowMaterial);
+            const points = new THREE.Points(geometry, pointsMaterial);
+            swarmGroup.add(glowPoints);
+            swarmGroup.add(points);
+
+            const MAX_LINKS_PER_NODE = 4;
+            const LINK_DISTANCE_SQ = 3.5;
+            const linkCounts = new Uint8Array(PARTICLE_COUNT);
+            const linePairs = [];
+
+            const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+
+            for (let i = 0; i < PARTICLE_COUNT; i += 1) {
+                const t = i / (PARTICLE_COUNT - 1);
+                const y = 1 - (t * 2);
+                const circleRadius = Math.sqrt(Math.max(0, 1 - y * y));
+                const theta = goldenAngle * i;
+                const organicRadius = 6.8 + Math.sin(i * 0.17) * 0.45 + Math.cos(i * 0.09) * 0.35;
+
+                const x = Math.cos(theta) * circleRadius * organicRadius;
+                const py = y * organicRadius + Math.sin(i * 0.11) * 0.25;
+                const z = Math.sin(theta) * circleRadius * organicRadius;
+                const idx = i * 3;
+
+                basePositions[idx] = x;
+                basePositions[idx + 1] = py;
+                basePositions[idx + 2] = z;
+                livePositions[idx] = x;
+                livePositions[idx + 1] = py;
+                livePositions[idx + 2] = z;
+
+                phaseArray[i] = Math.random() * Math.PI * 2;
+                radiusArray[i] = 0.7 + Math.random() * 0.3;
+            }
+
+            for (let i = 0; i < PARTICLE_COUNT; i += 1) {
+                if (linkCounts[i] >= MAX_LINKS_PER_NODE) {
+                    continue;
+                }
+
+                const a = i * 3;
+                const ax = basePositions[a];
+                const ay = basePositions[a + 1];
+                const az = basePositions[a + 2];
+
+                for (let j = i + 1; j < PARTICLE_COUNT; j += 1) {
+                    if (linkCounts[i] >= MAX_LINKS_PER_NODE) {
+                        break;
+                    }
+                    if (linkCounts[j] >= MAX_LINKS_PER_NODE) {
+                        continue;
+                    }
+
+                    const b = j * 3;
+                    const dx = ax - basePositions[b];
+                    const dy = ay - basePositions[b + 1];
+                    const dz = az - basePositions[b + 2];
+                    const distSq = dx * dx + dy * dy + dz * dz;
+
+                    if (distSq <= LINK_DISTANCE_SQ) {
+                        linePairs.push(i, j);
+                        linkCounts[i] += 1;
+                        linkCounts[j] += 1;
+                    }
+                }
+            }
+
+            const linePositions = new Float32Array(linePairs.length * 3);
+            const lineGeometry = new THREE.BufferGeometry();
+            const linePositionAttribute = new THREE.BufferAttribute(linePositions, 3);
+            linePositionAttribute.setUsage(THREE.DynamicDrawUsage);
+            lineGeometry.setAttribute('position', linePositionAttribute);
+
+            const lineMaterial = new THREE.LineBasicMaterial({
+                color: calmLineColor,
+                transparent: true,
+                opacity: 0.18,
+                blending: THREE.NormalBlending,
+                depthWrite: false
+            });
+
+            const meshLines = new THREE.LineSegments(lineGeometry, lineMaterial);
+            swarmGroup.add(meshLines);
+
+            const coreGeometry = new THREE.IcosahedronGeometry(2.75, 1);
+            const coreMaterial = new THREE.MeshBasicMaterial({
+                color: calmLineColor,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.32
+            });
+
+            const innerCoreGeometry = new THREE.IcosahedronGeometry(1.65, 0);
+            const innerCoreMaterial = new THREE.MeshBasicMaterial({
+                color: calmColor,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.16
+            });
+
+            const aiCore = new THREE.Mesh(coreGeometry, coreMaterial);
+            const innerCore = new THREE.Mesh(innerCoreGeometry, innerCoreMaterial);
+            aiCore.add(innerCore);
+            swarmGroup.add(aiCore);
+
+            function syncLinePositions() {
+                let cursorIndex = 0;
+                for (let i = 0; i < linePairs.length; i += 2) {
+                    const a = linePairs[i] * 3;
+                    const b = linePairs[i + 1] * 3;
+
+                    linePositions[cursorIndex] = livePositions[a];
+                    linePositions[cursorIndex + 1] = livePositions[a + 1];
+                    linePositions[cursorIndex + 2] = livePositions[a + 2];
+                    linePositions[cursorIndex + 3] = livePositions[b];
+                    linePositions[cursorIndex + 4] = livePositions[b + 1];
+                    linePositions[cursorIndex + 5] = livePositions[b + 2];
+                    cursorIndex += 6;
+                }
+                linePositionAttribute.needsUpdate = true;
+            }
+
+            syncLinePositions();
+
+            const mouse = new THREE.Vector2(0, 0);
+            const cursor = new THREE.Vector3(999, 999, 0);
+            const targetCursor = new THREE.Vector3(999, 999, 0);
+            let pointerActive = false;
+            let pointerStrength = 0;
+            let threatMix = 0;
+            let spinSpeed = 0.00055;
+
+            window.addEventListener('mousemove', (event) => {
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -((event.clientY / window.innerHeight) * 2 - 1);
+                targetCursor.set(mouse.x * 8, mouse.y * 4.5, 0);
+                pointerActive = true;
+            });
+
+            window.addEventListener('mouseleave', () => {
+                pointerActive = false;
+                targetCursor.set(999, 999, 0);
+            });
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight, false);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            });
+
+            function animate(now) {
+                const time = now * 0.001;
+                const highSevCount = Number(threatState.highSevCount || 0);
+                const targetThreatMix = highSevCount > 0 ? 1 : 0;
+
+                threatMix = THREE.MathUtils.lerp(threatMix, targetThreatMix, 0.035);
+                pointerStrength = THREE.MathUtils.lerp(pointerStrength, pointerActive ? 1 : 0, 0.08);
+                cursor.lerp(targetCursor, 0.12);
+                spinSpeed = THREE.MathUtils.lerp(spinSpeed, highSevCount > 0 ? 0.0018 : 0.00055, 0.05);
+
+                blendedColor.copy(calmColor).lerp(threatColor, threatMix);
+                blendedLineColor.copy(calmLineColor).lerp(threatLineColor, threatMix);
+                glowMaterial.color.copy(blendedColor);
+                lineMaterial.color.copy(blendedLineColor);
+                coreMaterial.color.copy(blendedLineColor);
+                innerCoreMaterial.color.copy(blendedColor);
+                glowMaterial.opacity = THREE.MathUtils.lerp(0.10, 0.18, threatMix);
+                glowMaterial.size = THREE.MathUtils.lerp(0.23, 0.30, threatMix);
+                pointsMaterial.size = THREE.MathUtils.lerp(0.115, 0.14, threatMix);
+                lineMaterial.opacity = THREE.MathUtils.lerp(0.18, 0.26, threatMix);
+                coreMaterial.opacity = THREE.MathUtils.lerp(0.32, 0.46, threatMix);
+                innerCoreMaterial.opacity = THREE.MathUtils.lerp(0.16, 0.24, threatMix);
+
+                swarmGroup.rotation.y += spinSpeed;
+                swarmGroup.rotation.z += spinSpeed * 0.35;
+                swarmGroup.rotation.x = THREE.MathUtils.lerp(
+                    swarmGroup.rotation.x,
+                    (mouse.y * 0.18) + Math.sin(time * 0.25) * 0.08,
+                    0.03
+                );
+
+                aiCore.rotation.x += spinSpeed * 1.3;
+                aiCore.rotation.y += spinSpeed * 1.15;
+                aiCore.rotation.z += spinSpeed * 0.7;
+                innerCore.rotation.x -= spinSpeed * 1.1;
+                innerCore.rotation.y += spinSpeed * 1.4;
+
+                camera.position.x = THREE.MathUtils.lerp(camera.position.x, mouse.x * 1.2, 0.03);
+                camera.position.y = THREE.MathUtils.lerp(camera.position.y, mouse.y * 0.7, 0.03);
+                camera.position.z = THREE.MathUtils.lerp(camera.position.z, 18 - (Math.abs(mouse.x) * 0.3), 0.03);
+                camera.lookAt(0, 0, 0);
+
+                for (let i = 0; i < PARTICLE_COUNT; i += 1) {
+                    const idx = i * 3;
+                    const phase = phaseArray[i];
+                    const driftScale = radiusArray[i];
+
+                    let tx = basePositions[idx] + Math.sin(time * 0.65 + phase) * 0.12 * driftScale;
+                    let ty = basePositions[idx + 1] + Math.cos(time * 0.72 + phase * 1.2) * 0.12 * driftScale;
+                    let tz = basePositions[idx + 2] + Math.sin(time * 0.58 + phase * 0.8) * 0.16 * driftScale;
+
+                    if (pointerStrength > 0.001) {
+                        const dx = tx - cursor.x;
+                        const dy = ty - cursor.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy) + 0.0001;
+                        const influenceRadius = 3.8;
+
+                        if (dist < influenceRadius) {
+                            const force = (1 - dist / influenceRadius) * 0.75 * pointerStrength;
+                            tx += (dx / dist) * force;
+                            ty += (dy / dist) * force;
+                        }
+                    }
+
+                    livePositions[idx] = THREE.MathUtils.lerp(livePositions[idx], tx, 0.09);
+                    livePositions[idx + 1] = THREE.MathUtils.lerp(livePositions[idx + 1], ty, 0.09);
+                    livePositions[idx + 2] = THREE.MathUtils.lerp(livePositions[idx + 2], tz, 0.09);
+
+                    const intensity = 0.62 + Math.sin(time * 1.4 + phase) * 0.08 + radiusArray[i] * 0.3;
+                    colorArray[idx] = blendedColor.r * intensity;
+                    colorArray[idx + 1] = blendedColor.g * intensity;
+                    colorArray[idx + 2] = blendedColor.b * intensity;
+                }
+
+                positionAttribute.needsUpdate = true;
+                colorAttribute.needsUpdate = true;
+                syncLinePositions();
+                renderer.render(scene, camera);
+                requestAnimationFrame(animate);
+            }
+
+            requestAnimationFrame(animate);
+        } catch (error) {
+            console.error('Neural Swarm initialization failed:', error);
+        }
+    </script>
+</body>
+</html>
